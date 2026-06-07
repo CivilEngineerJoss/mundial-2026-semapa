@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 204 45% 98%;
+  --foreground: 214 48% 16%;
+  --card: 0 0% 100%;
+  --card-foreground: 214 48% 16%;
+  --primary: 205 92% 35%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 151 55% 38%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 202 38% 92%;
+  --muted-foreground: 213 20% 43%;
+  --accent: 190 84% 39%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 78% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 205 30% 84%;
+  --input: 205 30% 84%;
+  --ring: 205 92% 35%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(13, 148, 136, 0.15), transparent 34rem),
+    linear-gradient(180deg, #f7fbff 0%, #edf7f3 100%);
+  color: hsl(var(--foreground));
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+input[type="number"] {
+  appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.stadium-band {
+  background:
+    linear-gradient(135deg, rgba(0, 92, 162, 0.96), rgba(0, 131, 76, 0.9)),
+    url("data:image/svg+xml,%3Csvg width='180' height='120' viewBox='0 0 180 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='.14'%3E%3Cpath d='M0 96c24-18 48-18 72 0s48 18 72 0 48-18 72 0'/%3E%3Ccircle cx='90' cy='60' r='34'/%3E%3Cpath d='M90 26v68M56 60h68'/%3E%3C/g%3E%3C/svg%3E");
+}
