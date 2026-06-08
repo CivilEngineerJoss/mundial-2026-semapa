@@ -192,7 +192,7 @@ export function AdminPage() {
     setAdminActionLoading(true);
     const { error } = await supabase.rpc("admin_approve_payment", { p_prediction_id: predictionId });
     setAdminActionLoading(false);
-    setMessage(error ? error.message : "Pago aprobado correctamente. El usuario ya vera el mensaje de felicitacion y el enlace de WhatsApp.");
+    setMessage(error ? error.message : "Pronostico aprobado correctamente. El usuario ya vera el mensaje de felicitacion y el enlace de WhatsApp.");
     await load();
   };
 
@@ -304,12 +304,12 @@ export function AdminPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Aprobacion de pagos</CardTitle>
-          <p className="text-sm text-muted-foreground">Revise el pago realizado por el participante y apruebe su registro cuando el pago este verificado.</p>
+          <CardTitle>Aprobacion de pronosticos</CardTitle>
+          <p className="text-sm text-muted-foreground">Revise el pago del participante y apruebe el pronostico cuando el pago este verificado. Solo los pronosticos aprobados participan oficialmente y aparecen en el ranking.</p>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
-            <thead><tr><Th>Participante</Th><Th>Correo</Th><Th>Pronostico</Th><Th>Codigo</Th><Th>Confirmacion</Th><Th>Pago</Th><Th>Accion</Th></tr></thead>
+            <thead><tr><Th>Participante</Th><Th>Correo</Th><Th>Pronostico</Th><Th>Codigo</Th><Th>Confirmacion</Th><Th>Estado</Th><Th>Accion</Th></tr></thead>
             <tbody>
               {paymentRows.map((row) => (
                 <tr key={row.id}>
@@ -323,7 +323,7 @@ export function AdminPage() {
                     {row.payment_status === "APROBADO" ? (
                       <span className="text-sm font-semibold text-secondary">Aprobado</span>
                     ) : (
-                      <Button size="sm" disabled={adminActionLoading} onClick={() => approvePayment(row.id, row.users?.full_name)}>Aprobar pago</Button>
+                      <Button size="sm" disabled={adminActionLoading} onClick={() => approvePayment(row.id, row.users?.full_name)}>Aprobar pronostico</Button>
                     )}
                   </Td>
                 </tr>
