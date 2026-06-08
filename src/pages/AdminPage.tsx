@@ -20,6 +20,19 @@ type Dashboard = {
   pending_matches: number;
 };
 
+type PaymentReviewRow = {
+  id: string;
+  user_id: string;
+  confirmed_at: string | null;
+  confirmation_code: string | null;
+  payment_status: "PENDIENTE" | "APROBADO";
+  payment_approved_at: string | null;
+  users?: {
+    full_name: string;
+    email: string;
+  } | null;
+};
+
 export function AdminPage() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -33,17 +46,23 @@ export function AdminPage() {
   const [resultDrafts, setResultDrafts] = useState<Record<number, { goals_a: string; goals_b: string }>>({});
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [adminActionLoading, setAdminActionLoading] = useState(false);
+  const [paymentRows, setPaymentRows] = useState<PaymentReviewRow[]>([]);
 
   const filteredUsers = useMemo(() => users.filter((user) => `${user.full_name} ${user.email}`.toLowerCase().includes(query.toLowerCase())), [users, query]);
 
   const load = async () => {
-    const [usersRes, matchesRes, rankingRes, settingsRes, dashboardRes, resultsRes] = await Promise.all([
+    const [usersRes, matchesRes, rankingRes, settingsRes, dashboardRes, resultsRes, paymentsRes] = await Promise.all([
       supabase.from("users").select("*").order("created_at", { ascending: false }),
       supabase.from("matches").select("*").lte("match_number", 72).order("sort_order"),
       supabase.from("rankings").select("*").order("position").limit(15),
       supabase.from("settings").select("*").eq("key", "prizes_text").maybeSingle(),
       supabase.rpc("admin_dashboard"),
       supabase.from("results").select("match_id,goals_a,goals_b,registered_at"),
+      supabase
+        .from("predictions")
+        .select("id,user_id,confirmed_at,confirmation_code,payment_status,payment_approved_at,users(full_name,email)")
+        .eq("status", "CONFIRMADO")
+        .order("confirmed_at", { ascending: false }),
     ]);
     setUsers((usersRes.data as UserProfile[] | null) ?? []);
     setMatches(getGroupStageMatches((matchesRes.data as Match[] | null) ?? []));
@@ -58,6 +77,7 @@ export function AdminPage() {
         ]),
       ),
     );
+    setPaymentRows((paymentsRes.data as PaymentReviewRow[] | null) ?? []);
   };
 
   useEffect(() => {
@@ -163,6 +183,15 @@ export function AdminPage() {
     await load();
   };
 
+  const approvePayment = async (predictionId: string, name?: string) => {
+    if (!window.confirm(`Aprobar el pago de ${name ?? "este participante"}?`)) return;
+    setAdminActionLoading(true);
+    const { error } = await supabase.rpc("admin_approve_payment", { p_prediction_id: predictionId });
+    setAdminActionLoading(false);
+    setMessage(error ? error.message : "Pago aprobado correctamente. El usuario ya vera el mensaje de felicitacion y el enlace de WhatsApp.");
+    await load();
+  };
+
   const exportUsers = () => {
     const csv = ["Nombre,Correo,Rol,Registro", ...users.map((u) => `"${u.full_name}","${u.email}","${u.role}","${u.created_at}"`)].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -246,6 +275,37 @@ export function AdminPage() {
           </CardContent>
         </Card>
       </section>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Aprobacion de pagos</CardTitle>
+          <p className="text-sm text-muted-foreground">Revise el pago realizado por el participante y apruebe su registro cuando el pago este verificado.</p>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <Table>
+            <thead><tr><Th>Participante</Th><Th>Correo</Th><Th>Codigo</Th><Th>Confirmacion</Th><Th>Pago</Th><Th>Accion</Th></tr></thead>
+            <tbody>
+              {paymentRows.map((row) => (
+                <tr key={row.id}>
+                  <Td className="font-semibold">{row.users?.full_name ?? "Usuario"}</Td>
+                  <Td>{row.users?.email ?? "-"}</Td>
+                  <Td>{row.confirmation_code ?? "-"}</Td>
+                  <Td>{formatDateTime(row.confirmed_at)}</Td>
+                  <Td>{row.payment_status ?? "PENDIENTE"}</Td>
+                  <Td>
+                    {row.payment_status === "APROBADO" ? (
+                      <span className="text-sm font-semibold text-secondary">Aprobado</span>
+                    ) : (
+                      <Button size="sm" disabled={adminActionLoading} onClick={() => approvePayment(row.id, row.users?.full_name)}>Aprobar pago</Button>
+                    )}
+                  </Td>
+                </tr>
+              ))}
+              {!paymentRows.length && <tr><Td colSpan={6} className="text-center text-muted-foreground">Aun no hay pronosticos confirmados para revisar.</Td></tr>}
+            </tbody>
+          </Table>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

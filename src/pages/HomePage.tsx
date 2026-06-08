@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, Lock, Save, Send, Trophy } from "lucide-react";
+import { Download, ExternalLink, Lock, Save, Send } from "lucide-react";
 import { useAuth } from "../components/AuthProvider";
 import { TeamLabel } from "../components/TeamLabel";
 import { Badge } from "../components/ui/badge";
@@ -15,6 +15,8 @@ import { deadlinePassed, formatDateTime, makeValidationHash } from "../lib/utils
 import { getGroupStageMatches, getGroups } from "../lib/matches";
 
 const DEFAULT_DEADLINE = "2026-06-11T13:00:00-04:00";
+const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/HMAQHMa0TMs8VVDCBBiNU3";
+const PAYMENT_QR_URL = `${import.meta.env.BASE_URL}payment-qr.jpeg`;
 
 export function HomePage() {
   const { profile, user } = useAuth();
@@ -25,6 +27,7 @@ export function HomePage() {
   const [deadline, setDeadline] = useState(DEFAULT_DEADLINE);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [paymentQrMissing, setPaymentQrMissing] = useState(false);
 
   const visibleMatchIds = useMemo(() => new Set(matches.map((match) => match.id)), [matches]);
   const completed = useMemo(
@@ -33,6 +36,8 @@ export function HomePage() {
   );
   const locked = prediction?.status === "CONFIRMADO" || deadlinePassed(deadline);
   const status = prediction?.status === "CONFIRMADO" ? "CONFIRMADO" : deadlinePassed(deadline) ? "BLOQUEADO POR FECHA" : "BORRADOR";
+  const paymentApproved = prediction?.payment_status === "APROBADO";
+  const paymentPending = prediction?.status === "CONFIRMADO" && !paymentApproved;
 
   useEffect(() => {
     async function load() {
@@ -108,9 +113,9 @@ export function HomePage() {
     });
     if (error) setMessage(error.message);
     else {
-      const next = { ...pred, status: "CONFIRMADO" as const, confirmed_at: new Date().toISOString(), confirmation_code: data as string, validation_hash: validationHash };
+      const next = { ...pred, status: "CONFIRMADO" as const, confirmed_at: new Date().toISOString(), confirmation_code: data as string, validation_hash: validationHash, payment_status: "PENDIENTE" as const };
       setPrediction(next);
-      setMessage("Pronostico confirmado. Su comprobante PDF esta listo.");
+      setMessage("Pronostico confirmado. Escanee el QR de pago y espere la aprobacion del administrador para participar oficialmente.");
       await generatePredictionPdf({ profile: profile!, prediction: next, matches, details: Object.values(details) });
     }
   };
@@ -129,6 +134,7 @@ export function HomePage() {
           <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
             <p><b>Correo:</b> {profile.email}</p>
             <p><b>Estado:</b> <Badge>{status}</Badge></p>
+            <p><b>Pago:</b> <Badge>{paymentApproved ? "APROBADO" : prediction?.status === "CONFIRMADO" ? "PENDIENTE" : "Pendiente"}</Badge></p>
             <p><b>Confirmacion:</b> {formatDateTime(prediction?.confirmed_at)}</p>
             <p><b>Codigo:</b> {prediction?.confirmation_code ?? "Pendiente"}</p>
           </CardContent>
@@ -142,6 +148,42 @@ export function HomePage() {
           <CardContent className="text-3xl font-black text-secondary">{ranking?.position ? `#${ranking.position}` : "-"}</CardContent>
         </Card>
       </section>
+
+      {paymentApproved && (
+        <Card className="border-secondary/40 bg-emerald-50">
+          <CardContent className="space-y-3 pt-5">
+            <h2 className="text-xl font-black text-secondary">FELICITACIONES YA ESTAS PARTICIPANDO EN EL MUNDIAL 2026 - INTERNO DE SEMAPA</h2>
+            <p className="text-sm text-emerald-950">Tu pago fue aprobado por administracion. Unete al grupo oficial de WhatsApp para recibir comunicados del concurso.</p>
+            <Button onClick={() => window.open(WHATSAPP_GROUP_URL, "_blank", "noopener,noreferrer")}><ExternalLink size={16} /> Unirme al grupo de WhatsApp</Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {paymentPending && (
+        <Card className="border-primary/30">
+          <CardHeader>
+            <CardTitle>Pago pendiente de aprobacion</CardTitle>
+            <p className="text-sm text-muted-foreground">Escanee este QR, realice el pago de Bs70.00 y espere la aprobacion del administrador.</p>
+          </CardHeader>
+          <CardContent className="grid gap-4 lg:grid-cols-[360px_1fr] lg:items-center">
+            <div className="rounded-lg border bg-white p-3">
+              {!paymentQrMissing ? (
+                <img className="mx-auto w-full max-w-[340px]" src={PAYMENT_QR_URL} alt="QR de pago Banco Economico" onError={() => setPaymentQrMissing(true)} />
+              ) : (
+                <div className="rounded-md bg-muted p-6 text-center text-sm font-semibold text-muted-foreground">
+                  Falta cargar la imagen public/payment-qr.jpeg en el proyecto.
+                </div>
+              )}
+            </div>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p><b className="text-foreground">Monto:</b> Bs70.00</p>
+              <p><b className="text-foreground">Motivo:</b> Polla Mundialista 2026</p>
+              <p><b className="text-foreground">Estado:</b> Pendiente de revision administrativa</p>
+              <p>Cuando el administrador confirme el pago, aparecera el mensaje de felicitacion y el enlace al grupo de WhatsApp.</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

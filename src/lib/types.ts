@@ -39,6 +39,9 @@ export type Prediction = {
   ip_address: string | null;
   user_agent: string | null;
   validation_hash: string | null;
+  payment_status?: "PENDIENTE" | "APROBADO";
+  payment_approved_at?: string | null;
+  payment_approved_by?: string | null;
 };
 
 export type Result = {
