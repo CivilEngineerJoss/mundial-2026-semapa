@@ -23,15 +23,13 @@ type Dashboard = {
 type PaymentReviewRow = {
   id: string;
   user_id: string;
+  full_name: string;
+  email: string;
   confirmed_at: string | null;
   confirmation_code: string | null;
   payment_status: "PENDIENTE" | "APROBADO";
   payment_approved_at: string | null;
   prediction_slot: number;
-  users?: {
-    full_name: string;
-    email: string;
-  } | null;
 };
 
 export function AdminPage() {
@@ -60,11 +58,7 @@ export function AdminPage() {
       supabase.from("settings").select("*").eq("key", "prizes_text").maybeSingle(),
       supabase.rpc("admin_dashboard"),
       supabase.from("results").select("match_id,goals_a,goals_b,registered_at"),
-      supabase
-        .from("predictions")
-        .select("id,user_id,confirmed_at,confirmation_code,payment_status,payment_approved_at,prediction_slot,users(full_name,email)")
-        .eq("status", "CONFIRMADO")
-        .order("confirmed_at", { ascending: false }),
+      supabase.rpc("admin_get_prediction_approvals"),
     ]);
     const nextUsers = (usersRes.data as UserProfile[] | null) ?? [];
     setUsers(nextUsers);
@@ -82,6 +76,7 @@ export function AdminPage() {
       ),
     );
     setPaymentRows((paymentsRes.data as PaymentReviewRow[] | null) ?? []);
+    if (paymentsRes.error) setMessage(paymentsRes.error.message);
   };
 
   useEffect(() => {
@@ -188,7 +183,7 @@ export function AdminPage() {
   };
 
   const approvePayment = async (predictionId: string, name?: string) => {
-    if (!window.confirm(`Aprobar el pago de ${name ?? "este participante"}?`)) return;
+    if (!window.confirm(`Aprobar el pronostico de ${name ?? "este participante"}?`)) return;
     setAdminActionLoading(true);
     const { error } = await supabase.rpc("admin_approve_payment", { p_prediction_id: predictionId });
     setAdminActionLoading(false);
@@ -313,8 +308,8 @@ export function AdminPage() {
             <tbody>
               {paymentRows.map((row) => (
                 <tr key={row.id}>
-                  <Td className="font-semibold">{row.users?.full_name ?? "Usuario"}</Td>
-                  <Td>{row.users?.email ?? "-"}</Td>
+                  <Td className="font-semibold">{row.full_name ?? "Usuario"}</Td>
+                  <Td>{row.email ?? "-"}</Td>
                   <Td>#{row.prediction_slot ?? 1}</Td>
                   <Td>{row.confirmation_code ?? "-"}</Td>
                   <Td>{formatDateTime(row.confirmed_at)}</Td>
@@ -323,7 +318,7 @@ export function AdminPage() {
                     {row.payment_status === "APROBADO" ? (
                       <span className="text-sm font-semibold text-secondary">Aprobado</span>
                     ) : (
-                      <Button size="sm" disabled={adminActionLoading} onClick={() => approvePayment(row.id, row.users?.full_name)}>Aprobar pronostico</Button>
+                      <Button size="sm" disabled={adminActionLoading} onClick={() => approvePayment(row.id, row.full_name)}>Aprobar pronostico</Button>
                     )}
                   </Td>
                 </tr>
