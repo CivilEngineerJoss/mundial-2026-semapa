@@ -204,7 +204,7 @@ begin
   ) s
   where s.id = pd.id;
 
-  delete from public.rankings;
+  delete from public.rankings where true;
 
   insert into public.rankings(user_id, full_name, total_points, exact_scores, winner_hits, matches_hit, position, updated_at)
   select

@@ -1,5 +1,4 @@
--- Ejecutar una sola vez si la base ya tenia cargados partidos eliminatorios.
--- Deja el concurso solo con fase de grupos, partidos 1 al 72.
+-- Corrige la funcion de recalculo para bases con proteccion contra DELETE sin WHERE.
 
 create or replace function public.recalculate_rankings()
 returns void
@@ -59,8 +58,3 @@ begin
   ) ranked;
 end;
 $$;
-
-delete from public.matches
-where match_number > 72;
-
-select public.recalculate_rankings();
