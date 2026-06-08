@@ -8,7 +8,7 @@ import { formatDateTime } from "../lib/utils";
 
 export function RankingPage() {
   const [rows, setRows] = useState<RankingRow[]>([]);
-  const [prizes, setPrizes] = useState("1° Lugar\n2° Lugar\n3° Lugar");
+  const [prizes, setPrizes] = useState("Primer lugar\nSegundo lugar\nTercer lugar");
 
   useEffect(() => {
     supabase.from("rankings").select("*").order("position").limit(15).then(({ data }) => setRows((data as RankingRow[] | null) ?? []));
@@ -61,6 +61,9 @@ export function RankingPage() {
           {prizes.split("\n").filter(Boolean).map((line) => (
             <div key={line} className="rounded-lg border bg-white p-4 font-bold text-secondary">{line}</div>
           ))}
+          <p className="text-sm text-muted-foreground">
+            Solo se premia primer, segundo y tercer lugar. En caso de empate, el premio de esa posicion se reparte entre quienes tengan el mismo puntaje.
+          </p>
         </CardContent>
       </Card>
     </div>

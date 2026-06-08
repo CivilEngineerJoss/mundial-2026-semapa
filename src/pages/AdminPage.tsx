@@ -32,6 +32,17 @@ type PaymentReviewRow = {
   prediction_slot: number;
 };
 
+const DEFAULT_PRIZE_LINES = ["Primer lugar", "Segundo lugar", "Tercer lugar"];
+
+const parsePrizes = (value?: string | null) => {
+  const lines = value?.split("\n").map((line) => line.trim()).filter(Boolean) ?? [];
+  return {
+    first: lines[0] ?? DEFAULT_PRIZE_LINES[0],
+    second: lines[1] ?? DEFAULT_PRIZE_LINES[1],
+    third: lines[2] ?? DEFAULT_PRIZE_LINES[2],
+  };
+};
+
 export function AdminPage() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -39,7 +50,7 @@ export function AdminPage() {
   const [ranking, setRanking] = useState<RankingRow[]>([]);
   const [dashboard, setDashboard] = useState<Dashboard>({ registered: 0, confirmed: 0, pending: 0, played: 0, pending_matches: 0 });
   const [query, setQuery] = useState("");
-  const [prizes, setPrizes] = useState("");
+  const [prizes, setPrizes] = useState(parsePrizes());
   const [message, setMessage] = useState("");
   const [newMatch, setNewMatch] = useState({ phase: "Fase de grupos", group_name: "", team_a: "", team_b: "" });
   const [resultDrafts, setResultDrafts] = useState<Record<number, { goals_a: string; goals_b: string }>>({});
@@ -65,7 +76,7 @@ export function AdminPage() {
     setPredictionLimitDrafts(Object.fromEntries(nextUsers.map((user) => [user.id, String(user.max_predictions ?? 1)])));
     setMatches(getGroupStageMatches((matchesRes.data as Match[] | null) ?? []));
     setRanking((rankingRes.data as RankingRow[] | null) ?? []);
-    setPrizes(settingsRes.data?.value ?? "1° Lugar\n2° Lugar\n3° Lugar");
+    setPrizes(parsePrizes(settingsRes.data?.value));
     if (dashboardRes.data) setDashboard(dashboardRes.data as Dashboard);
     setResultDrafts(
       Object.fromEntries(
@@ -141,8 +152,9 @@ export function AdminPage() {
   };
 
   const savePrizes = async () => {
-    await supabase.from("settings").upsert({ key: "prizes_text", value: prizes });
-    setMessage("Premios actualizados.");
+    const value = [prizes.first, prizes.second, prizes.third].map((line) => line.trim()).join("\n");
+    const { error } = await supabase.from("settings").upsert({ key: "prizes_text", value });
+    setMessage(error ? error.message : "Premios actualizados.");
   };
 
   const toggleUserSelection = (userId: string) => {
@@ -407,8 +419,24 @@ export function AdminPage() {
 
       <Card>
         <CardHeader><CardTitle>Premios</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <textarea className="min-h-28 w-full rounded-md border bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-ring" value={prizes} onChange={(e) => setPrizes(e.target.value)} />
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-3">
+            <label className="space-y-1 text-sm font-semibold">
+              <span>Premio primer lugar</span>
+              <Input value={prizes.first} onChange={(event) => setPrizes((current) => ({ ...current, first: event.target.value }))} />
+            </label>
+            <label className="space-y-1 text-sm font-semibold">
+              <span>Premio segundo lugar</span>
+              <Input value={prizes.second} onChange={(event) => setPrizes((current) => ({ ...current, second: event.target.value }))} />
+            </label>
+            <label className="space-y-1 text-sm font-semibold">
+              <span>Premio tercer lugar</span>
+              <Input value={prizes.third} onChange={(event) => setPrizes((current) => ({ ...current, third: event.target.value }))} />
+            </label>
+          </div>
+          <p className="rounded-md border bg-muted p-3 text-sm text-muted-foreground">
+            Si hay empate en una posicion premiada, el monto de esa posicion se reparte en partes iguales entre los participantes empatados por puntaje.
+          </p>
           <Button onClick={savePrizes}><Save size={16} /> Guardar premios</Button>
         </CardContent>
       </Card>

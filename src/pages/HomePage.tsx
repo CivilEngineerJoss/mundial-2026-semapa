@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, ExternalLink, Lock, Plus, Save, Send } from "lucide-react";
+import { Download, ExternalLink, Lock, Plus, Save, Send, Trophy } from "lucide-react";
 import { useAuth } from "../components/AuthProvider";
 import { TeamLabel } from "../components/TeamLabel";
 import { Badge } from "../components/ui/badge";
@@ -26,6 +26,7 @@ export function HomePage() {
   const [details, setDetails] = useState<Record<number, PredictionDetail>>({});
   const [ranking, setRanking] = useState<RankingRow | null>(null);
   const [deadline, setDeadline] = useState(DEFAULT_DEADLINE);
+  const [prizes, setPrizes] = useState("Primer lugar\nSegundo lugar\nTercer lugar");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [paymentQrMissing, setPaymentQrMissing] = useState(false);
@@ -48,7 +49,7 @@ export function HomePage() {
       setDetails({});
       return;
     }
-    const { data: rows } = await supabase.from("prediction_details").select("*").eq("prediction_id", pred.id).lte("match_id", 72);
+    const { data: rows } = await supabase.from("prediction_details").select("*").eq("prediction_id", pred.id);
     setDetails(Object.fromEntries(((rows as PredictionDetail[] | null) ?? []).map((row) => [row.match_id, row])));
   };
 
@@ -65,11 +66,13 @@ export function HomePage() {
     async function load() {
       const [{ data: matchRows }, { data: settingRows }] = await Promise.all([
         supabase.from("matches").select("*").lte("match_number", 72).order("sort_order"),
-        supabase.from("settings").select("*").in("key", ["deadline_iso"]),
+        supabase.from("settings").select("*").in("key", ["deadline_iso", "prizes_text"]),
       ]);
       setMatches(getGroupStageMatches((matchRows as Match[] | null) ?? initialMatches));
       const configuredDeadline = settingRows?.find((row) => row.key === "deadline_iso")?.value;
+      const configuredPrizes = settingRows?.find((row) => row.key === "prizes_text")?.value;
       if (configuredDeadline) setDeadline(configuredDeadline);
+      if (configuredPrizes) setPrizes(configuredPrizes);
       if (!user) return;
       const { data: predRows } = await supabase.from("predictions").select("*").eq("user_id", user.id).order("prediction_slot").order("created_at");
       const list = (predRows as Prediction[] | null) ?? [];
@@ -130,10 +133,19 @@ export function HomePage() {
       const pred = await ensurePrediction();
       const payload = matches
         .map((match) => details[match.id])
-        .filter(Boolean)
-        .map((detail) => ({ ...detail, prediction_id: pred.id }));
-      if (payload.length) await supabase.from("prediction_details").upsert(payload, { onConflict: "prediction_id,match_id" });
-      setMessage("Borrador guardado.");
+        .filter((detail): detail is PredictionDetail => Boolean(detail) && detail.predicted_goals_a !== null && detail.predicted_goals_b !== null)
+        .map((detail) => ({
+          prediction_id: pred.id,
+          match_id: detail.match_id,
+          predicted_goals_a: detail.predicted_goals_a,
+          predicted_goals_b: detail.predicted_goals_b,
+        }));
+      if (payload.length) {
+        const { error } = await supabase.from("prediction_details").upsert(payload, { onConflict: "prediction_id,match_id" });
+        if (error) throw error;
+        await loadPredictionDetails(pred);
+      }
+      setMessage(`Borrador guardado: ${payload.length} partido(s) con marcador completo.`);
       return pred;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "No se pudo guardar.");
@@ -215,6 +227,22 @@ export function HomePage() {
             </select>
           </label>
           <Button variant="outline" disabled={!canCreatePrediction} onClick={createAdditionalPrediction}><Plus size={16} /> Nuevo pronostico</Button>
+        </CardContent>
+      </Card>
+
+      <Card className="border-primary/25">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Trophy size={20} /> Premios y empates</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 text-sm text-muted-foreground lg:grid-cols-[1fr_1.4fr]">
+          <div className="space-y-2">
+            {prizes.split("\n").filter(Boolean).map((line) => (
+              <div key={line} className="rounded-md border bg-white px-3 py-2 font-bold text-secondary">{line}</div>
+            ))}
+          </div>
+          <p>
+            El premio se entrega solo al primer lugar, segundo lugar y tercer lugar. Si dos o mas participantes terminan con el mismo puntaje final en una de esas posiciones, el monto de ese lugar se reparte en partes iguales entre quienes tengan ese puntaje.
+          </p>
         </CardContent>
       </Card>
 

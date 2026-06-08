@@ -51,6 +51,9 @@ export function Layout() {
       <main className="mx-auto max-w-7xl px-4 py-6">
         <Outlet />
       </main>
+      <footer className="mx-auto max-w-7xl px-4 pb-6 text-center text-xs font-semibold text-muted-foreground">
+        Software Desarrollado por Joseph Bill
+      </footer>
     </div>
   );
 }
