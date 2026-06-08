@@ -1,13 +1,14 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Download, RefreshCw, Save } from "lucide-react";
+import { CheckCircle2, Download, RefreshCw, RotateCcw, Save, Trash2 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Table, Td, Th } from "../components/ui/table";
 import { TeamLabel } from "../components/TeamLabel";
+import { useAuth } from "../components/AuthProvider";
 import { getMatchSchedule } from "../data/matchSchedule";
 import { supabase } from "../lib/supabase";
-import type { Match, RankingRow, UserProfile } from "../lib/types";
+import type { Match, RankingRow, Result, UserProfile } from "../lib/types";
 import { formatDateTime } from "../lib/utils";
 import { getGroupStageMatches, getGroups } from "../lib/matches";
 
@@ -20,6 +21,7 @@ type Dashboard = {
 };
 
 export function AdminPage() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [ranking, setRanking] = useState<RankingRow[]>([]);
@@ -28,22 +30,34 @@ export function AdminPage() {
   const [prizes, setPrizes] = useState("");
   const [message, setMessage] = useState("");
   const [newMatch, setNewMatch] = useState({ phase: "Fase de grupos", group_name: "", team_a: "", team_b: "" });
+  const [resultDrafts, setResultDrafts] = useState<Record<number, { goals_a: string; goals_b: string }>>({});
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [adminActionLoading, setAdminActionLoading] = useState(false);
 
   const filteredUsers = useMemo(() => users.filter((user) => `${user.full_name} ${user.email}`.toLowerCase().includes(query.toLowerCase())), [users, query]);
 
   const load = async () => {
-    const [usersRes, matchesRes, rankingRes, settingsRes, dashboardRes] = await Promise.all([
+    const [usersRes, matchesRes, rankingRes, settingsRes, dashboardRes, resultsRes] = await Promise.all([
       supabase.from("users").select("*").order("created_at", { ascending: false }),
       supabase.from("matches").select("*").lte("match_number", 72).order("sort_order"),
       supabase.from("rankings").select("*").order("position").limit(15),
       supabase.from("settings").select("*").eq("key", "prizes_text").maybeSingle(),
       supabase.rpc("admin_dashboard"),
+      supabase.from("results").select("match_id,goals_a,goals_b,registered_at"),
     ]);
     setUsers((usersRes.data as UserProfile[] | null) ?? []);
     setMatches(getGroupStageMatches((matchesRes.data as Match[] | null) ?? []));
     setRanking((rankingRes.data as RankingRow[] | null) ?? []);
     setPrizes(settingsRes.data?.value ?? "1° Lugar\n2° Lugar\n3° Lugar");
     if (dashboardRes.data) setDashboard(dashboardRes.data as Dashboard);
+    setResultDrafts(
+      Object.fromEntries(
+        ((resultsRes.data as Result[] | null) ?? []).map((result) => [
+          result.match_id,
+          { goals_a: String(result.goals_a), goals_b: String(result.goals_b) },
+        ]),
+      ),
+    );
   };
 
   useEffect(() => {
@@ -52,12 +66,27 @@ export function AdminPage() {
 
   const saveResult = async (event: FormEvent<HTMLFormElement>, match: Match) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const goalsA = Number(form.get("goals_a"));
-    const goalsB = Number(form.get("goals_b"));
+    const draft = resultDrafts[match.id] ?? { goals_a: "", goals_b: "" };
+    if (draft.goals_a === "" || draft.goals_b === "") {
+      setMessage(`Ingrese los goles oficiales del partido #${match.match_number} antes de guardar el resultado.`);
+      return;
+    }
+    const goalsA = Number(draft.goals_a);
+    const goalsB = Number(draft.goals_b);
     const { error } = await supabase.rpc("register_result", { p_match_id: match.id, p_goals_a: goalsA, p_goals_b: goalsB });
     setMessage(error ? error.message : `Resultado oficial del partido #${match.match_number} guardado correctamente. Puntajes y ranking recalculados.`);
     await load();
+  };
+
+  const updateResultDraft = (matchId: number, field: "goals_a" | "goals_b", value: string) => {
+    setResultDrafts((current) => ({
+      ...current,
+      [matchId]: {
+        goals_a: current[matchId]?.goals_a ?? "",
+        goals_b: current[matchId]?.goals_b ?? "",
+        [field]: value,
+      },
+    }));
   };
 
   const updateMatch = async (match: Match) => {
@@ -95,6 +124,43 @@ export function AdminPage() {
   const savePrizes = async () => {
     await supabase.from("settings").upsert({ key: "prizes_text", value: prizes });
     setMessage("Premios actualizados.");
+  };
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUserIds((current) => (current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId]));
+  };
+
+  const resetPredictions = async (scope: "all" | "selected") => {
+    const targetIds = scope === "selected" ? selectedUserIds : null;
+    if (scope === "selected" && !selectedUserIds.length) {
+      setMessage("Seleccione al menos un usuario para reiniciar sus predicciones.");
+      return;
+    }
+    const label = scope === "all" ? "TODAS las predicciones de todos los usuarios" : "las predicciones de los usuarios seleccionados";
+    if (!window.confirm(`Esta accion borrara ${label}. Los usuarios deberan llenar su pronostico nuevamente. Desea continuar?`)) return;
+
+    setAdminActionLoading(true);
+    const { error } = await supabase.rpc("admin_reset_predictions", { p_user_ids: targetIds });
+    setAdminActionLoading(false);
+    setMessage(error ? error.message : scope === "all" ? "Todas las predicciones fueron reiniciadas correctamente." : "Predicciones seleccionadas reiniciadas correctamente.");
+    if (!error) setSelectedUserIds([]);
+    await load();
+  };
+
+  const deleteSelectedUsers = async () => {
+    const targetIds = selectedUserIds.filter((id) => id !== currentUser?.id);
+    if (!targetIds.length) {
+      setMessage("Seleccione usuarios para eliminar. Su propia cuenta administradora no se eliminara desde aqui.");
+      return;
+    }
+    if (!window.confirm(`Eliminar ${targetIds.length} usuario(s) seleccionado(s)? Esta accion tambien borra sus predicciones.`)) return;
+
+    setAdminActionLoading(true);
+    const { error } = await supabase.rpc("admin_delete_users", { p_user_ids: targetIds });
+    setAdminActionLoading(false);
+    setMessage(error ? error.message : "Usuarios seleccionados eliminados correctamente.");
+    if (!error) setSelectedUserIds([]);
+    await load();
   };
 
   const exportUsers = () => {
@@ -137,11 +203,35 @@ export function AdminPage() {
               <Button variant="outline" onClick={exportUsers}><Download size={16} /> Exportar</Button>
             </div>
             <Input placeholder="Buscar usuarios" value={query} onChange={(e) => setQuery(e.target.value)} />
+            <div className="grid gap-2 rounded-lg border bg-muted p-3 text-sm sm:grid-cols-3">
+              <Button variant="outline" disabled={adminActionLoading} onClick={() => resetPredictions("all")}><RotateCcw size={16} /> Reiniciar todas</Button>
+              <Button variant="outline" disabled={adminActionLoading || !selectedUserIds.length} onClick={() => resetPredictions("selected")}><RotateCcw size={16} /> Reiniciar seleccionados</Button>
+              <Button variant="danger" disabled={adminActionLoading || !selectedUserIds.length} onClick={deleteSelectedUsers}><Trash2 size={16} /> Eliminar seleccionados</Button>
+            </div>
           </CardHeader>
           <CardContent className="max-h-[460px] overflow-auto">
             <Table>
-              <thead><tr><Th>Nombre</Th><Th>Correo</Th><Th>Rol</Th><Th>Registro</Th></tr></thead>
-              <tbody>{filteredUsers.map((user) => <tr key={user.id}><Td>{user.full_name}</Td><Td>{user.email}</Td><Td>{user.role}</Td><Td>{formatDateTime(user.created_at)}</Td></tr>)}</tbody>
+              <thead><tr><Th>Sel.</Th><Th>Nombre</Th><Th>Correo</Th><Th>Rol</Th><Th>Registro</Th></tr></thead>
+              <tbody>
+                {filteredUsers.map((user) => (
+                  <tr key={user.id}>
+                    <Td>
+                      <input
+                        aria-label={`Seleccionar ${user.full_name}`}
+                        checked={selectedUserIds.includes(user.id)}
+                        className="h-4 w-4"
+                        disabled={user.id === currentUser?.id}
+                        type="checkbox"
+                        onChange={() => toggleUserSelection(user.id)}
+                      />
+                    </Td>
+                    <Td>{user.full_name}</Td>
+                    <Td>{user.email}</Td>
+                    <Td>{user.role}</Td>
+                    <Td>{formatDateTime(user.created_at)}</Td>
+                  </tr>
+                ))}
+              </tbody>
             </Table>
           </CardContent>
         </Card>
@@ -186,6 +276,7 @@ export function AdminPage() {
                   const schedule = getMatchSchedule(match);
                   const teamA = schedule?.teamA ?? match.team_a;
                   const teamB = schedule?.teamB ?? match.team_b;
+                  const resultDraft = resultDrafts[match.id] ?? { goals_a: "", goals_b: "" };
                   return (
                     <form key={match.id} onSubmit={(event) => saveResult(event, match)} className="grid gap-2 rounded-lg border bg-white p-3 lg:grid-cols-[70px_1fr_1fr_90px_90px_auto_auto_auto] lg:items-center">
                       <div className="text-xs font-bold text-muted-foreground">
@@ -202,8 +293,24 @@ export function AdminPage() {
                         <TeamLabel team={teamB} />
                         <Input value={match.team_b} onChange={(e) => setMatches((rows) => rows.map((row) => (row.id === match.id ? { ...row, team_b: e.target.value } : row)))} />
                       </div>
-                      <Input name="goals_a" type="number" min={0} max={99} placeholder="Goles A" />
-                      <Input name="goals_b" type="number" min={0} max={99} placeholder="Goles B" />
+                      <Input
+                        name="goals_a"
+                        type="number"
+                        min={0}
+                        max={99}
+                        placeholder="Goles A"
+                        value={resultDraft.goals_a}
+                        onChange={(event) => updateResultDraft(match.id, "goals_a", event.target.value)}
+                      />
+                      <Input
+                        name="goals_b"
+                        type="number"
+                        min={0}
+                        max={99}
+                        placeholder="Goles B"
+                        value={resultDraft.goals_b}
+                        onChange={(event) => updateResultDraft(match.id, "goals_b", event.target.value)}
+                      />
                       <Button type="button" variant="outline" onClick={() => updateMatch(match)}><Save size={16} /> Partido</Button>
                       <Button type="submit">Resultado</Button>
                       <Button type="button" variant="danger" onClick={() => deleteMatch(match)}>Eliminar</Button>
