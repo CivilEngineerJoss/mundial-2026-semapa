@@ -6,6 +6,7 @@ export type UserProfile = {
   email: string;
   role: "user" | "admin";
   created_at: string;
+  max_predictions?: number;
 };
 
 export type Match = {
@@ -42,6 +43,8 @@ export type Prediction = {
   payment_status?: "PENDIENTE" | "APROBADO";
   payment_approved_at?: string | null;
   payment_approved_by?: string | null;
+  prediction_slot?: number;
+  created_at?: string;
 };
 
 export type Result = {
@@ -52,8 +55,10 @@ export type Result = {
 };
 
 export type RankingRow = {
+  prediction_id?: string;
   user_id: string;
   full_name: string;
+  prediction_slot?: number;
   total_points: number;
   exact_scores: number;
   winner_hits: number;

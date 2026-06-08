@@ -27,6 +27,7 @@ type PaymentReviewRow = {
   confirmation_code: string | null;
   payment_status: "PENDIENTE" | "APROBADO";
   payment_approved_at: string | null;
+  prediction_slot: number;
   users?: {
     full_name: string;
     email: string;
@@ -47,6 +48,7 @@ export function AdminPage() {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [adminActionLoading, setAdminActionLoading] = useState(false);
   const [paymentRows, setPaymentRows] = useState<PaymentReviewRow[]>([]);
+  const [predictionLimitDrafts, setPredictionLimitDrafts] = useState<Record<string, string>>({});
 
   const filteredUsers = useMemo(() => users.filter((user) => `${user.full_name} ${user.email}`.toLowerCase().includes(query.toLowerCase())), [users, query]);
 
@@ -60,11 +62,13 @@ export function AdminPage() {
       supabase.from("results").select("match_id,goals_a,goals_b,registered_at"),
       supabase
         .from("predictions")
-        .select("id,user_id,confirmed_at,confirmation_code,payment_status,payment_approved_at,users(full_name,email)")
+        .select("id,user_id,confirmed_at,confirmation_code,payment_status,payment_approved_at,prediction_slot,users(full_name,email)")
         .eq("status", "CONFIRMADO")
         .order("confirmed_at", { ascending: false }),
     ]);
-    setUsers((usersRes.data as UserProfile[] | null) ?? []);
+    const nextUsers = (usersRes.data as UserProfile[] | null) ?? [];
+    setUsers(nextUsers);
+    setPredictionLimitDrafts(Object.fromEntries(nextUsers.map((user) => [user.id, String(user.max_predictions ?? 1)])));
     setMatches(getGroupStageMatches((matchesRes.data as Match[] | null) ?? []));
     setRanking((rankingRes.data as RankingRow[] | null) ?? []);
     setPrizes(settingsRes.data?.value ?? "1° Lugar\n2° Lugar\n3° Lugar");
@@ -192,6 +196,15 @@ export function AdminPage() {
     await load();
   };
 
+  const savePredictionLimit = async (targetUser: UserProfile) => {
+    const nextLimit = Math.max(1, Number.parseInt(predictionLimitDrafts[targetUser.id] ?? "1", 10) || 1);
+    setAdminActionLoading(true);
+    const { error } = await supabase.rpc("admin_set_prediction_limit", { p_user_id: targetUser.id, p_max_predictions: nextLimit });
+    setAdminActionLoading(false);
+    setMessage(error ? error.message : `Cupos de pronostico actualizados para ${targetUser.full_name}.`);
+    await load();
+  };
+
   const exportUsers = () => {
     const csv = ["Nombre,Correo,Rol,Registro", ...users.map((u) => `"${u.full_name}","${u.email}","${u.role}","${u.created_at}"`)].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -240,7 +253,7 @@ export function AdminPage() {
           </CardHeader>
           <CardContent className="max-h-[460px] overflow-auto">
             <Table>
-              <thead><tr><Th>Sel.</Th><Th>Nombre</Th><Th>Correo</Th><Th>Rol</Th><Th>Registro</Th></tr></thead>
+              <thead><tr><Th>Sel.</Th><Th>Nombre</Th><Th>Correo</Th><Th>Rol</Th><Th>Cupos</Th><Th>Registro</Th></tr></thead>
               <tbody>
                 {filteredUsers.map((user) => (
                   <tr key={user.id}>
@@ -257,6 +270,19 @@ export function AdminPage() {
                     <Td>{user.full_name}</Td>
                     <Td>{user.email}</Td>
                     <Td>{user.role}</Td>
+                    <Td>
+                      <div className="flex min-w-[150px] items-center gap-2">
+                        <Input
+                          className="h-9 w-20"
+                          min={1}
+                          max={20}
+                          type="number"
+                          value={predictionLimitDrafts[user.id] ?? String(user.max_predictions ?? 1)}
+                          onChange={(event) => setPredictionLimitDrafts((current) => ({ ...current, [user.id]: event.target.value }))}
+                        />
+                        <Button size="sm" variant="outline" disabled={adminActionLoading} onClick={() => savePredictionLimit(user)}>Guardar</Button>
+                      </div>
+                    </Td>
                     <Td>{formatDateTime(user.created_at)}</Td>
                   </tr>
                 ))}
@@ -269,8 +295,8 @@ export function AdminPage() {
           <CardHeader><CardTitle>Ranking en tiempo real</CardTitle></CardHeader>
           <CardContent className="max-h-[460px] overflow-auto">
             <Table>
-              <thead><tr><Th>#</Th><Th>Nombre</Th><Th>Puntos</Th><Th>Exactos</Th></tr></thead>
-              <tbody>{ranking.map((row) => <tr key={row.user_id}><Td>{row.position}</Td><Td>{row.full_name}</Td><Td>{row.total_points}</Td><Td>{row.exact_scores}</Td></tr>)}</tbody>
+              <thead><tr><Th>#</Th><Th>Nombre</Th><Th>Pronostico</Th><Th>Puntos</Th><Th>Exactos</Th></tr></thead>
+              <tbody>{ranking.map((row) => <tr key={row.prediction_id ?? row.user_id}><Td>{row.position}</Td><Td>{row.full_name}</Td><Td>#{row.prediction_slot ?? 1}</Td><Td>{row.total_points}</Td><Td>{row.exact_scores}</Td></tr>)}</tbody>
             </Table>
           </CardContent>
         </Card>
@@ -283,12 +309,13 @@ export function AdminPage() {
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
-            <thead><tr><Th>Participante</Th><Th>Correo</Th><Th>Codigo</Th><Th>Confirmacion</Th><Th>Pago</Th><Th>Accion</Th></tr></thead>
+            <thead><tr><Th>Participante</Th><Th>Correo</Th><Th>Pronostico</Th><Th>Codigo</Th><Th>Confirmacion</Th><Th>Pago</Th><Th>Accion</Th></tr></thead>
             <tbody>
               {paymentRows.map((row) => (
                 <tr key={row.id}>
                   <Td className="font-semibold">{row.users?.full_name ?? "Usuario"}</Td>
                   <Td>{row.users?.email ?? "-"}</Td>
+                  <Td>#{row.prediction_slot ?? 1}</Td>
                   <Td>{row.confirmation_code ?? "-"}</Td>
                   <Td>{formatDateTime(row.confirmed_at)}</Td>
                   <Td>{row.payment_status ?? "PENDIENTE"}</Td>
@@ -301,7 +328,7 @@ export function AdminPage() {
                   </Td>
                 </tr>
               ))}
-              {!paymentRows.length && <tr><Td colSpan={6} className="text-center text-muted-foreground">Aun no hay pronosticos confirmados para revisar.</Td></tr>}
+              {!paymentRows.length && <tr><Td colSpan={7} className="text-center text-muted-foreground">Aun no hay pronosticos confirmados para revisar.</Td></tr>}
             </tbody>
           </Table>
         </CardContent>

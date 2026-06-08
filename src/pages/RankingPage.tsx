@@ -29,6 +29,7 @@ export function RankingPage() {
               <tr>
                 <Th>Posicion</Th>
                 <Th>Nombre</Th>
+                <Th>Pronostico</Th>
                 <Th>Puntos</Th>
                 <Th>Exactos</Th>
                 <Th>Ganadores</Th>
@@ -38,9 +39,10 @@ export function RankingPage() {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.user_id}>
+                <tr key={row.prediction_id ?? row.user_id}>
                   <Td className="font-black text-primary">#{row.position}</Td>
                   <Td className="font-semibold">{row.full_name}</Td>
+                  <Td>#{row.prediction_slot ?? 1}</Td>
                   <Td>{row.total_points}</Td>
                   <Td>{row.exact_scores}</Td>
                   <Td>{row.winner_hits}</Td>
@@ -48,7 +50,7 @@ export function RankingPage() {
                   <Td>{formatDateTime(row.updated_at)}</Td>
                 </tr>
               ))}
-              {!rows.length && <tr><Td colSpan={7} className="text-center text-muted-foreground">Ranking sin datos todavia.</Td></tr>}
+              {!rows.length && <tr><Td colSpan={8} className="text-center text-muted-foreground">Ranking sin datos todavia.</Td></tr>}
             </tbody>
           </Table>
         </CardContent>

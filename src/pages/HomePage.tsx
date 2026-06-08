@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, ExternalLink, Lock, Save, Send } from "lucide-react";
+import { Download, ExternalLink, Lock, Plus, Save, Send } from "lucide-react";
 import { useAuth } from "../components/AuthProvider";
 import { TeamLabel } from "../components/TeamLabel";
 import { Badge } from "../components/ui/badge";
@@ -21,6 +21,7 @@ const PAYMENT_QR_URL = `${import.meta.env.BASE_URL}payment-qr.jpeg`;
 export function HomePage() {
   const { profile, user } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
+  const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [details, setDetails] = useState<Record<number, PredictionDetail>>({});
   const [ranking, setRanking] = useState<RankingRow | null>(null);
@@ -38,6 +39,27 @@ export function HomePage() {
   const status = prediction?.status === "CONFIRMADO" ? "CONFIRMADO" : deadlinePassed(deadline) ? "BLOQUEADO POR FECHA" : "BORRADOR";
   const paymentApproved = prediction?.payment_status === "APROBADO";
   const paymentPending = prediction?.status === "CONFIRMADO" && !paymentApproved;
+  const maxPredictions = Math.max(1, profile?.max_predictions ?? 1);
+  const hasDraftPrediction = predictions.some((row) => row.status === "BORRADOR");
+  const canCreatePrediction = Boolean(user && predictions.length < maxPredictions && !hasDraftPrediction && !deadlinePassed(deadline));
+
+  const loadPredictionDetails = async (pred: Prediction | null) => {
+    if (!pred) {
+      setDetails({});
+      return;
+    }
+    const { data: rows } = await supabase.from("prediction_details").select("*").eq("prediction_id", pred.id).lte("match_id", 72);
+    setDetails(Object.fromEntries(((rows as PredictionDetail[] | null) ?? []).map((row) => [row.match_id, row])));
+  };
+
+  const loadRankingFor = async (pred: Prediction | null) => {
+    if (!pred) {
+      setRanking(null);
+      return;
+    }
+    const { data: rank } = await supabase.from("rankings").select("*").eq("prediction_id", pred.id).maybeSingle();
+    setRanking((rank as RankingRow | null) ?? null);
+  };
 
   useEffect(() => {
     async function load() {
@@ -49,24 +71,47 @@ export function HomePage() {
       const configuredDeadline = settingRows?.find((row) => row.key === "deadline_iso")?.value;
       if (configuredDeadline) setDeadline(configuredDeadline);
       if (!user) return;
-      const { data: pred } = await supabase.from("predictions").select("*").eq("user_id", user.id).maybeSingle();
-      if (pred) {
-        setPrediction(pred as Prediction);
-        const { data: rows } = await supabase.from("prediction_details").select("*").eq("prediction_id", pred.id).lte("match_id", 72);
-        setDetails(Object.fromEntries(((rows as PredictionDetail[] | null) ?? []).map((row) => [row.match_id, row])));
-      }
-      const { data: rank } = await supabase.from("rankings").select("*").eq("user_id", user.id).maybeSingle();
-      setRanking((rank as RankingRow | null) ?? null);
+      const { data: predRows } = await supabase.from("predictions").select("*").eq("user_id", user.id).order("prediction_slot").order("created_at");
+      const list = (predRows as Prediction[] | null) ?? [];
+      const active = list.find((row) => row.status === "BORRADOR") ?? list[0] ?? null;
+      setPredictions(list);
+      setPrediction(active);
+      await loadPredictionDetails(active);
+      await loadRankingFor(active);
     }
     load();
   }, [user]);
 
   const ensurePrediction = async () => {
-    if (prediction) return prediction;
-    const { data, error } = await supabase.from("predictions").insert({ user_id: user!.id, status: "BORRADOR" }).select("*").single();
+    if (prediction?.status === "BORRADOR") return prediction;
+    const nextSlot = Math.max(0, ...predictions.map((row) => row.prediction_slot ?? 1)) + 1;
+    const { data, error } = await supabase.from("predictions").insert({ user_id: user!.id, status: "BORRADOR", prediction_slot: nextSlot }).select("*").single();
     if (error) throw error;
-    setPrediction(data as Prediction);
-    return data as Prediction;
+    const next = data as Prediction;
+    setPredictions((current) => [...current, next]);
+    setPrediction(next);
+    setDetails({});
+    setRanking(null);
+    return next;
+  };
+
+  const switchPrediction = async (predictionId: string) => {
+    const next = predictions.find((row) => row.id === predictionId) ?? null;
+    setPrediction(next);
+    setMessage("");
+    await loadPredictionDetails(next);
+    await loadRankingFor(next);
+  };
+
+  const createAdditionalPrediction = async () => {
+    if (!canCreatePrediction) return;
+    setMessage("");
+    try {
+      const next = await ensurePrediction();
+      setMessage(`Pronostico #${next.prediction_slot ?? predictions.length + 1} creado. Complete los partidos y confirme cuando este listo.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "No se pudo crear otro pronostico.");
+    }
   };
 
   const setScore = (matchId: number, field: "predicted_goals_a" | "predicted_goals_b", value: string) => {
@@ -115,6 +160,7 @@ export function HomePage() {
     else {
       const next = { ...pred, status: "CONFIRMADO" as const, confirmed_at: new Date().toISOString(), confirmation_code: data as string, validation_hash: validationHash, payment_status: "PENDIENTE" as const };
       setPrediction(next);
+      setPredictions((current) => current.map((row) => (row.id === next.id ? next : row)));
       setMessage("Pronostico confirmado. Escanee el QR de pago y espere la aprobacion del administrador para participar oficialmente.");
       await generatePredictionPdf({ profile: profile!, prediction: next, matches, details: Object.values(details) });
     }
@@ -137,6 +183,8 @@ export function HomePage() {
             <p><b>Pago:</b> <Badge>{paymentApproved ? "APROBADO" : prediction?.status === "CONFIRMADO" ? "PENDIENTE" : "Pendiente"}</Badge></p>
             <p><b>Confirmacion:</b> {formatDateTime(prediction?.confirmed_at)}</p>
             <p><b>Codigo:</b> {prediction?.confirmation_code ?? "Pendiente"}</p>
+            <p><b>Pronostico:</b> #{prediction?.prediction_slot ?? 1}</p>
+            <p><b>Cupos:</b> {predictions.length} de {maxPredictions}</p>
           </CardContent>
         </Card>
         <Card>
@@ -148,6 +196,27 @@ export function HomePage() {
           <CardContent className="text-3xl font-black text-secondary">{ranking?.position ? `#${ranking.position}` : "-"}</CardContent>
         </Card>
       </section>
+
+      <Card>
+        <CardContent className="grid gap-3 pt-5 md:grid-cols-[1fr_auto] md:items-end">
+          <label className="space-y-1 text-sm font-semibold">
+            <span>Pronosticos del participante</span>
+            <select
+              className="h-10 w-full rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              value={prediction?.id ?? ""}
+              onChange={(event) => switchPrediction(event.target.value)}
+            >
+              {predictions.map((row) => (
+                <option key={row.id} value={row.id}>
+                  Pronostico #{row.prediction_slot ?? 1} - {row.status}{row.payment_status ? ` - Pago ${row.payment_status}` : ""}
+                </option>
+              ))}
+              {!predictions.length && <option value="">Sin pronosticos creados</option>}
+            </select>
+          </label>
+          <Button variant="outline" disabled={!canCreatePrediction} onClick={createAdditionalPrediction}><Plus size={16} /> Nuevo pronostico</Button>
+        </CardContent>
+      </Card>
 
       {paymentApproved && (
         <Card className="border-secondary/40 bg-emerald-50">
