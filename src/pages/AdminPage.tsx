@@ -98,7 +98,13 @@ export function AdminPage() {
     event.preventDefault();
     const draft = resultDrafts[match.id] ?? { goals_a: "", goals_b: "" };
     if (draft.goals_a === "" || draft.goals_b === "") {
-      setMessage(`Ingrese los goles oficiales del partido #${match.match_number} antes de guardar el resultado.`);
+      if (draft.goals_a !== "" || draft.goals_b !== "") {
+        setMessage(`Ingrese ambos goles oficiales del partido #${match.match_number}, o deje ambos campos vacios para limpiar el resultado.`);
+        return;
+      }
+      const { error } = await supabase.rpc("register_result", { p_match_id: match.id, p_goals_a: null, p_goals_b: null });
+      setMessage(error ? error.message : `Resultado oficial del partido #${match.match_number} eliminado. Puntajes y ranking recalculados.`);
+      await load();
       return;
     }
     const goalsA = Number(draft.goals_a);
