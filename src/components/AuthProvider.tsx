@@ -8,6 +8,8 @@ type AuthContextValue = {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
+  passwordRecovery: boolean;
+  clearPasswordRecovery: () => void;
   refreshProfile: () => Promise<void>;
 };
 
@@ -17,6 +19,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [passwordRecovery, setPasswordRecovery] = useState(() => (
+    window.location.search.includes("reset-password=1") ||
+    window.location.hash.includes("type=recovery")
+  ));
 
   const loadProfile = async (userId?: string) => {
     if (!userId) {
@@ -33,7 +39,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await loadProfile(data.session?.user.id);
       setLoading(false);
     });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === "PASSWORD_RECOVERY") setPasswordRecovery(true);
       setSession(nextSession);
       loadProfile(nextSession?.user.id);
     });
@@ -46,9 +53,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user: session?.user ?? null,
       profile,
       loading,
+      passwordRecovery,
+      clearPasswordRecovery: () => setPasswordRecovery(false),
       refreshProfile: () => loadProfile(session?.user.id),
     }),
-    [session, profile, loading],
+    [session, profile, loading, passwordRecovery],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Input } from "../components/ui/input";
 
 export function LoginPage() {
-  const { user } = useAuth();
+  const { user, passwordRecovery } = useAuth();
   const [mode, setMode] = useState<"login" | "register" | "recover">("login");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -18,19 +18,22 @@ export function LoginPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to={passwordRecovery ? "/reset-password" : "/"} replace />;
   if (!isSupabaseConfigured) return <SupabaseSetupNotice />;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setLoading(true);
     setMessage("");
-    const redirectTo = `${window.location.origin}${window.location.pathname}#/`;
+    const appBaseUrl = (import.meta.env.VITE_APP_BASE_URL as string | undefined) || `${window.location.origin}${import.meta.env.BASE_URL}`;
+    const baseUrl = appBaseUrl.endsWith("/") ? appBaseUrl : `${appBaseUrl}/`;
+    const authRedirectTo = baseUrl;
+    const resetRedirectTo = `${baseUrl}?reset-password=1`;
     const result =
       mode === "register"
-        ? await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName }, emailRedirectTo: redirectTo } })
+        ? await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName }, emailRedirectTo: authRedirectTo } })
         : mode === "recover"
-          ? await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+          ? await supabase.auth.resetPasswordForEmail(email, { redirectTo: resetRedirectTo })
           : await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (result.error) setMessage(result.error.message);

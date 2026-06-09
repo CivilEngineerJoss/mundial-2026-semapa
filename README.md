@@ -48,7 +48,15 @@ VITE_APP_BASE_URL=https://usuario.github.io/mundial-2026-semapa/
 
 ```text
 https://usuario.github.io/mundial-2026-semapa/
+https://usuario.github.io/mundial-2026-semapa/?reset-password=1
 http://localhost:5173/
+http://localhost:5173/?reset-password=1
+```
+
+Para recuperacion de contrasena, configure tambien Site URL con la URL publicada, por ejemplo:
+
+```text
+https://usuario.github.io/mundial-2026-semapa/
 ```
 
 6. Cree el primer usuario desde la app.
