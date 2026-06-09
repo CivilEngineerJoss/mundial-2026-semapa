@@ -28,7 +28,8 @@ begin
     points = 0,
     exact_score = false,
     winner_hit = false,
-    updated_at = now();
+    updated_at = now()
+  where true;
 
   update public.prediction_details pd
   set
