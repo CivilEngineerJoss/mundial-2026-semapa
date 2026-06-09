@@ -15,14 +15,19 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const hasPasswordRecoveryIntent = () => (
+  window.location.search.includes("reset-password=1") ||
+  window.location.search.includes("type=recovery") ||
+  window.location.hash.includes("reset-password=1") ||
+  window.location.hash.includes("type=recovery") ||
+  window.location.hash.includes("access_token=")
+);
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [passwordRecovery, setPasswordRecovery] = useState(() => (
-    window.location.search.includes("reset-password=1") ||
-    window.location.hash.includes("type=recovery")
-  ));
+  const [passwordRecovery, setPasswordRecovery] = useState(hasPasswordRecoveryIntent);
 
   const loadProfile = async (userId?: string) => {
     if (!userId) {
@@ -35,6 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
+      if (hasPasswordRecoveryIntent()) setPasswordRecovery(true);
       setSession(data.session);
       await loadProfile(data.session?.user.id);
       setLoading(false);

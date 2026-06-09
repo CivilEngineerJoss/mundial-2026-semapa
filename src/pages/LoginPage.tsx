@@ -18,7 +18,8 @@ export function LoginPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
-  if (user) return <Navigate to={passwordRecovery ? "/reset-password" : "/"} replace />;
+  if (passwordRecovery) return <Navigate to="/reset-password" replace />;
+  if (user) return <Navigate to="/" replace />;
   if (!isSupabaseConfigured) return <SupabaseSetupNotice />;
 
   const submit = async (event: FormEvent) => {
