@@ -84,10 +84,10 @@ El recalculo se ejecuta desde la funcion `register_result` cada vez que el admin
 La fecha se guarda en `settings.deadline_iso`:
 
 ```text
-2026-06-11T13:00:00-04:00
+2026-06-11T15:00:00-04:00
 ```
 
-Corresponde al 11 de junio de 2026, 13:00 horas de Bolivia. Puede ajustarse desde SQL si SEMAPA cambia el reglamento.
+Corresponde al 11 de junio de 2026, 15:00 horas de Bolivia. Puede ajustarse desde SQL si SEMAPA cambia el reglamento.
 
 ## Despliegue GitHub Pages
 

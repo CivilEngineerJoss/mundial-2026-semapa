@@ -380,7 +380,7 @@ create policy "settings admin write" on public.settings for all using (public.is
 create policy "audit admin read" on public.audit_logs for select using (public.is_admin());
 
 insert into public.settings(key, value) values
-  ('deadline_iso', '2026-06-11T13:00:00-04:00'),
+  ('deadline_iso', '2026-06-11T15:00:00-04:00'),
   ('prizes_text', '1° Lugar\n2° Lugar\n3° Lugar')
 on conflict (key) do nothing;
 

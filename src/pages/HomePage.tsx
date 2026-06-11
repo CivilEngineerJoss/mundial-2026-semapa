@@ -14,7 +14,7 @@ import type { Match, Prediction, PredictionDetail, RankingRow } from "../lib/typ
 import { deadlinePassed, formatDateTime, makeValidationHash } from "../lib/utils";
 import { getGroupStageMatches, getGroups } from "../lib/matches";
 
-const DEFAULT_DEADLINE = "2026-06-11T13:00:00-04:00";
+const DEFAULT_DEADLINE = "2026-06-11T15:00:00-04:00";
 const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/HMAQHMa0TMs8VVDCBBiNU3";
 const PAYMENT_QR_URL = `${import.meta.env.BASE_URL}payment-qr.jpeg`;
 

@@ -47,7 +47,7 @@ export function LoginPage() {
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-secondary">SEMAPA</p>
         <h2 className="mt-3 text-4xl font-black leading-tight text-primary md:text-5xl">MUNDIAL 2026 - SEMAPA</h2>
         <p className="mt-4 max-w-xl text-lg text-muted-foreground">
-          Registre un unico pronostico completo para los 72 partidos de fase de grupos, confirme antes del 11 de junio de 2026 a las 13:00 de Bolivia y descargue su comprobante oficial.
+          Registre un unico pronostico completo para los 72 partidos de fase de grupos, confirme antes del 11 de junio de 2026 a las 15:00 de Bolivia y descargue su comprobante oficial.
         </p>
         <div className="mt-6 grid max-w-xl gap-3 sm:grid-cols-3">
           {["72 partidos", "PDF con QR", "Ranking Top 15"].map((item) => (
