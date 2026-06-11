@@ -71,6 +71,8 @@ export function AdminPage() {
   const [prizes, setPrizes] = useState(parsePrizes());
   const [message, setMessage] = useState("");
   const [deadlineDraft, setDeadlineDraft] = useState(toDatetimeLocalValue(DEFAULT_DEADLINE));
+  const [settingsMessage, setSettingsMessage] = useState("");
+  const [settingsSaving, setSettingsSaving] = useState(false);
   const [newMatch, setNewMatch] = useState({ phase: "Fase de grupos", group_name: "", team_a: "", team_b: "" });
   const [resultDrafts, setResultDrafts] = useState<Record<number, { goals_a: string; goals_b: string }>>({});
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
@@ -180,21 +182,36 @@ export function AdminPage() {
     await load();
   };
 
+  const saveSetting = async (key: string, value: string) => {
+    const rpcResult = await supabase.rpc("admin_upsert_setting", { p_key: key, p_value: value });
+    if (!rpcResult.error) return rpcResult;
+    if (!rpcResult.error.message.includes("admin_upsert_setting")) return rpcResult;
+    return supabase.from("settings").upsert({ key, value });
+  };
+
   const savePrizes = async () => {
+    setSettingsSaving(true);
     const value = [prizes.first, prizes.second, prizes.third].map((line) => line.trim()).join("\n");
-    const { error } = await supabase.from("settings").upsert({ key: "prizes_text", value });
-    setMessage(error ? error.message : "Premios actualizados.");
+    const { error } = await saveSetting("prizes_text", value);
+    setSettingsSaving(false);
+    const nextMessage = error ? error.message : "Premios actualizados.";
+    setSettingsMessage(nextMessage);
+    setMessage(nextMessage);
   };
 
   const saveDeadline = async () => {
     if (!deadlineDraft) {
-      setMessage("Seleccione una fecha y hora de cierre.");
+      setSettingsMessage("Seleccione una fecha y hora de cierre.");
       return;
     }
+    setSettingsSaving(true);
     const value = fromDatetimeLocalValue(deadlineDraft);
-    const { error } = await supabase.from("settings").upsert({ key: "deadline_iso", value });
-    setMessage(error ? error.message : `Fecha de cierre actualizada: ${formatDateTime(value)}.`);
-    await load();
+    const { error } = await saveSetting("deadline_iso", value);
+    setSettingsSaving(false);
+    const nextMessage = error ? error.message : `Fecha de cierre actualizada: ${formatDateTime(value)}.`;
+    setSettingsMessage(nextMessage);
+    setMessage(nextMessage);
+    if (!error) await load();
   };
 
   const toggleUserSelection = (userId: string) => {
@@ -466,11 +483,12 @@ export function AdminPage() {
                 <span>Cierre de predicciones</span>
                 <Input type="datetime-local" value={deadlineDraft} onChange={(event) => setDeadlineDraft(event.target.value)} />
               </label>
-              <Button onClick={saveDeadline}><Save size={16} /> Guardar cierre</Button>
+              <Button disabled={settingsSaving} onClick={saveDeadline}><Save size={16} /> {settingsSaving ? "Guardando..." : "Guardar cierre"}</Button>
             </div>
             <p className="text-sm text-muted-foreground">
               Esta fecha controla automaticamente hasta cuando los participantes pueden guardar o enviar pronosticos.
             </p>
+            {settingsMessage && <p className="rounded-md border bg-white p-2 text-sm font-semibold text-primary">{settingsMessage}</p>}
           </div>
           <div className="grid gap-3 md:grid-cols-3">
             <label className="space-y-1 text-sm font-semibold">
@@ -489,7 +507,7 @@ export function AdminPage() {
           <p className="rounded-md border bg-muted p-3 text-sm text-muted-foreground">
             Si hay empate en una posicion premiada, el monto de esa posicion se reparte en partes iguales entre los participantes empatados por puntaje.
           </p>
-          <Button onClick={savePrizes}><Save size={16} /> Guardar premios</Button>
+          <Button disabled={settingsSaving} onClick={savePrizes}><Save size={16} /> {settingsSaving ? "Guardando..." : "Guardar premios"}</Button>
         </CardContent>
       </Card>
     </div>
