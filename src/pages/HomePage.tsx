@@ -36,13 +36,15 @@ export function HomePage() {
     () => Object.values(details).filter((d) => visibleMatchIds.has(d.match_id) && d.predicted_goals_a !== null && d.predicted_goals_b !== null).length,
     [details, visibleMatchIds],
   );
-  const locked = prediction?.status === "CONFIRMADO" || deadlinePassed(deadline);
-  const status = prediction?.status === "CONFIRMADO" ? "CONFIRMADO" : deadlinePassed(deadline) ? "BLOQUEADO POR FECHA" : "BORRADOR";
+  const isAdmin = profile?.role === "admin";
+  const deadlineIsPassed = deadlinePassed(deadline);
+  const locked = prediction?.status === "CONFIRMADO" || (deadlineIsPassed && !isAdmin);
+  const status = prediction?.status === "CONFIRMADO" ? "CONFIRMADO" : deadlineIsPassed && !isAdmin ? "BLOQUEADO POR FECHA" : "BORRADOR";
   const paymentApproved = prediction?.payment_status === "APROBADO";
   const paymentPending = prediction?.status === "CONFIRMADO" && !paymentApproved;
   const maxPredictions = Math.max(1, profile?.max_predictions ?? 1);
   const hasDraftPrediction = predictions.some((row) => row.status === "BORRADOR");
-  const canCreatePrediction = Boolean(user && predictions.length < maxPredictions && !hasDraftPrediction && !deadlinePassed(deadline));
+  const canCreatePrediction = Boolean(user && predictions.length < maxPredictions && !hasDraftPrediction && (!deadlineIsPassed || isAdmin));
 
   const loadPredictionDetails = async (pred: Prediction | null) => {
     if (!pred) {
