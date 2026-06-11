@@ -33,6 +33,7 @@ type PaymentReviewRow = {
 };
 
 const DEFAULT_PRIZE_LINES = ["Primer lugar", "Segundo lugar", "Tercer lugar"];
+const DEFAULT_DEADLINE = "2026-06-11T15:00:00-04:00";
 
 const parsePrizes = (value?: string | null) => {
   const lines = value?.split("\n").map((line) => line.trim()).filter(Boolean) ?? [];
@@ -43,6 +44,23 @@ const parsePrizes = (value?: string | null) => {
   };
 };
 
+const toDatetimeLocalValue = (value?: string | null) => {
+  if (!value) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    hour: "2-digit",
+    hour12: false,
+    minute: "2-digit",
+    month: "2-digit",
+    timeZone: "America/La_Paz",
+    year: "numeric",
+  }).formatToParts(new Date(value));
+  const getPart = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${getPart("year")}-${getPart("month")}-${getPart("day")}T${getPart("hour")}:${getPart("minute")}`;
+};
+
+const fromDatetimeLocalValue = (value: string) => `${value}:00-04:00`;
+
 export function AdminPage() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -52,6 +70,7 @@ export function AdminPage() {
   const [query, setQuery] = useState("");
   const [prizes, setPrizes] = useState(parsePrizes());
   const [message, setMessage] = useState("");
+  const [deadlineDraft, setDeadlineDraft] = useState(toDatetimeLocalValue(DEFAULT_DEADLINE));
   const [newMatch, setNewMatch] = useState({ phase: "Fase de grupos", group_name: "", team_a: "", team_b: "" });
   const [resultDrafts, setResultDrafts] = useState<Record<number, { goals_a: string; goals_b: string }>>({});
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
@@ -66,7 +85,7 @@ export function AdminPage() {
       supabase.from("users").select("*").order("created_at", { ascending: false }),
       supabase.from("matches").select("*").lte("match_number", 72).order("sort_order"),
       supabase.from("rankings").select("*").order("position").limit(15),
-      supabase.from("settings").select("*").eq("key", "prizes_text").maybeSingle(),
+      supabase.from("settings").select("*").in("key", ["prizes_text", "deadline_iso"]),
       supabase.rpc("admin_dashboard"),
       supabase.from("results").select("match_id,goals_a,goals_b,registered_at"),
       supabase.rpc("admin_get_prediction_approvals"),
@@ -76,7 +95,11 @@ export function AdminPage() {
     setPredictionLimitDrafts(Object.fromEntries(nextUsers.map((user) => [user.id, String(user.max_predictions ?? 1)])));
     setMatches(getGroupStageMatches((matchesRes.data as Match[] | null) ?? []));
     setRanking((rankingRes.data as RankingRow[] | null) ?? []);
-    setPrizes(parsePrizes(settingsRes.data?.value));
+    const settingsRows = (settingsRes.data as { key: string; value: string | null }[] | null) ?? [];
+    const prizesText = settingsRows.find((row) => row.key === "prizes_text")?.value;
+    const deadlineIso = settingsRows.find((row) => row.key === "deadline_iso")?.value ?? DEFAULT_DEADLINE;
+    setPrizes(parsePrizes(prizesText));
+    setDeadlineDraft(toDatetimeLocalValue(deadlineIso));
     if (dashboardRes.data) setDashboard(dashboardRes.data as Dashboard);
     setResultDrafts(
       Object.fromEntries(
@@ -161,6 +184,17 @@ export function AdminPage() {
     const value = [prizes.first, prizes.second, prizes.third].map((line) => line.trim()).join("\n");
     const { error } = await supabase.from("settings").upsert({ key: "prizes_text", value });
     setMessage(error ? error.message : "Premios actualizados.");
+  };
+
+  const saveDeadline = async () => {
+    if (!deadlineDraft) {
+      setMessage("Seleccione una fecha y hora de cierre.");
+      return;
+    }
+    const value = fromDatetimeLocalValue(deadlineDraft);
+    const { error } = await supabase.from("settings").upsert({ key: "deadline_iso", value });
+    setMessage(error ? error.message : `Fecha de cierre actualizada: ${formatDateTime(value)}.`);
+    await load();
   };
 
   const toggleUserSelection = (userId: string) => {
@@ -426,6 +460,18 @@ export function AdminPage() {
       <Card>
         <CardHeader><CardTitle>Premios</CardTitle></CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-3 rounded-lg border bg-muted p-4">
+            <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+              <label className="space-y-1 text-sm font-semibold">
+                <span>Cierre de predicciones</span>
+                <Input type="datetime-local" value={deadlineDraft} onChange={(event) => setDeadlineDraft(event.target.value)} />
+              </label>
+              <Button onClick={saveDeadline}><Save size={16} /> Guardar cierre</Button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Esta fecha controla automaticamente hasta cuando los participantes pueden guardar o enviar pronosticos.
+            </p>
+          </div>
           <div className="grid gap-3 md:grid-cols-3">
             <label className="space-y-1 text-sm font-semibold">
               <span>Premio primer lugar</span>
