@@ -290,7 +290,7 @@ export function HomePage() {
               <p className="mt-1 text-sm text-muted-foreground">{completed} de {matches.length} partidos completados. Fecha limite: {formatDateTime(deadline)}.</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={saveDraft} disabled={locked || saving}><Save size={16} /> Guardar</Button>
+              <Button variant="outline" onClick={saveDraft} disabled={locked || saving}><Save size={16} /> Guardar pronostico</Button>
               <Button onClick={confirm} disabled={locked || completed !== matches.length}><Send size={16} /> Enviar pronostico definitivo</Button>
               {prediction?.status === "CONFIRMADO" && <Button variant="secondary" onClick={() => generatePredictionPdf({ profile, prediction, matches, details: Object.values(details) })}><Download size={16} /> PDF</Button>}
             </div>

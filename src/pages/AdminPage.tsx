@@ -62,7 +62,7 @@ const toDatetimeLocalValue = (value?: string | null) => {
 const fromDatetimeLocalValue = (value: string) => `${value}:00-04:00`;
 
 export function AdminPage() {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, profile } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [ranking, setRanking] = useState<RankingRow[]>([]);
@@ -190,6 +190,12 @@ export function AdminPage() {
   };
 
   const savePrizes = async () => {
+    if (profile?.role !== "admin") {
+      const nextMessage = "Solo el administrador puede guardar esta configuracion.";
+      setSettingsMessage(nextMessage);
+      setMessage(nextMessage);
+      return;
+    }
     setSettingsSaving(true);
     const value = [prizes.first, prizes.second, prizes.third].map((line) => line.trim()).join("\n");
     const { error } = await saveSetting("prizes_text", value);
@@ -200,6 +206,12 @@ export function AdminPage() {
   };
 
   const saveDeadline = async () => {
+    if (profile?.role !== "admin") {
+      const nextMessage = "Solo el administrador puede guardar la fecha y hora limite del pronostico.";
+      setSettingsMessage(nextMessage);
+      setMessage(nextMessage);
+      return;
+    }
     if (!deadlineDraft) {
       setSettingsMessage("Seleccione una fecha y hora de cierre.");
       return;
@@ -208,7 +220,7 @@ export function AdminPage() {
     const value = fromDatetimeLocalValue(deadlineDraft);
     const { error } = await saveSetting("deadline_iso", value);
     setSettingsSaving(false);
-    const nextMessage = error ? error.message : `Fecha de cierre actualizada: ${formatDateTime(value)}.`;
+    const nextMessage = error ? error.message : `Cambio realizado correctamente. La fecha y hora limite del pronostico ahora es ${formatDateTime(value)}.`;
     setSettingsMessage(nextMessage);
     setMessage(nextMessage);
     if (!error) await load();
