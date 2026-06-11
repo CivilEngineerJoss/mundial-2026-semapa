@@ -86,7 +86,7 @@ export function AdminPage() {
     const [usersRes, matchesRes, rankingRes, settingsRes, dashboardRes, resultsRes, paymentsRes] = await Promise.all([
       supabase.from("users").select("*").order("created_at", { ascending: false }),
       supabase.from("matches").select("*").lte("match_number", 72).order("sort_order"),
-      supabase.from("rankings").select("*").order("position").limit(15),
+      supabase.from("rankings").select("*").order("position"),
       supabase.from("settings").select("*").in("key", ["prizes_text", "deadline_iso"]),
       supabase.rpc("admin_dashboard"),
       supabase.from("results").select("match_id,goals_a,goals_b,registered_at"),

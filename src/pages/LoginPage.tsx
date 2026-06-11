@@ -50,7 +50,7 @@ export function LoginPage() {
           Registre un unico pronostico completo para los 72 partidos de fase de grupos, confirme antes del 11 de junio de 2026 a las 15:00 de Bolivia y descargue su comprobante oficial.
         </p>
         <div className="mt-6 grid max-w-xl gap-3 sm:grid-cols-3">
-          {["72 partidos", "PDF con QR", "Ranking Top 15"].map((item) => (
+          {["72 partidos", "PDF con QR", "Ranking general"].map((item) => (
             <div key={item} className="rounded-lg border bg-white p-4 font-bold text-primary shadow-soft">
               {item}
             </div>

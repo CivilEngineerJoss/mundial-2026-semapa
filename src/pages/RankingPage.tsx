@@ -11,7 +11,7 @@ export function RankingPage() {
   const [prizes, setPrizes] = useState("Primer lugar\nSegundo lugar\nTercer lugar");
 
   useEffect(() => {
-    supabase.from("rankings").select("*").order("position").limit(15).then(({ data }) => setRows((data as RankingRow[] | null) ?? []));
+    supabase.from("rankings").select("*").order("position").then(({ data }) => setRows((data as RankingRow[] | null) ?? []));
     supabase.from("settings").select("*").eq("key", "prizes_text").maybeSingle().then(({ data }) => {
       if (data?.value) setPrizes(data.value);
     });
@@ -21,7 +21,7 @@ export function RankingPage() {
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Medal size={22} /> Ranking general Top 15</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Medal size={22} /> Ranking general completo</CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
