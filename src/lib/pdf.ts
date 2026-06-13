@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
+import { getMatchSchedule } from "../data/matchSchedule";
 import type { Match, Prediction, PredictionDetail, UserProfile } from "./types";
 import { formatDateTime, makeValidationHash } from "./utils";
 
@@ -70,11 +71,15 @@ export async function generatePredictionPdf(args: {
       currentPhase = match.phase;
     }
     const detail = byMatch.get(match.id);
+    const schedule = getMatchSchedule(match);
+    const teamA = schedule?.teamA ?? match.team_a;
+    const teamB = schedule?.teamB ?? match.team_b;
+    const matchNumber = schedule?.matchNumber ?? match.match_number;
     doc.setFont("helvetica", "normal");
     doc.setTextColor(18, 47, 74);
     doc.setFontSize(9);
     doc.text(
-      `${match.match_number.toString().padStart(3, "0")}  ${match.team_a} ${detail?.predicted_goals_a ?? "-"} - ${detail?.predicted_goals_b ?? "-"} ${match.team_b}`,
+      `${matchNumber.toString().padStart(3, "0")}  ${teamA} ${detail?.predicted_goals_a ?? "-"} - ${detail?.predicted_goals_b ?? "-"} ${teamB}`,
       margin,
       y,
     );
