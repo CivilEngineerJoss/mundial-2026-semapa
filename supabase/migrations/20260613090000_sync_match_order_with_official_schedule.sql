@@ -1,5 +1,6 @@
--- Corrige el orden Equipo A / Equipo B en Supabase para que coincida con el fixture visible.
--- No modifica prediction_details ni results, porque esos goles ya fueron ingresados segun el orden visible.
+-- OBSOLETA: no ejecutar.
+-- Esta migracion cambia el mapeo interno de match_id y puede reinterpretar pronosticos existentes.
+-- Usar 20260613093000_restore_internal_match_mapping.sql.
 
 update public.matches m
 set
