@@ -99,9 +99,11 @@ export function AdminPage() {
       supabase.rpc("admin_get_prediction_approvals"),
     ]);
     const nextUsers = (usersRes.data as UserProfile[] | null) ?? [];
+    const nextMatches = getGroupStageMatches((matchesRes.data as Match[] | null) ?? []).map(applyOfficialScheduleTeams);
+    const playedMatchIds = new Set(nextMatches.filter((match) => match.status === "played").map((match) => match.id));
     setUsers(nextUsers);
     setPredictionLimitDrafts(Object.fromEntries(nextUsers.map((user) => [user.id, String(user.max_predictions ?? 1)])));
-    setMatches(getGroupStageMatches((matchesRes.data as Match[] | null) ?? []).map(applyOfficialScheduleTeams));
+    setMatches(nextMatches);
     setRanking((rankingRes.data as RankingRow[] | null) ?? []);
     const settingsRows = (settingsRes.data as { key: string; value: string | null }[] | null) ?? [];
     const prizesText = settingsRows.find((row) => row.key === "prizes_text")?.value;
@@ -111,7 +113,7 @@ export function AdminPage() {
     if (dashboardRes.data) setDashboard(dashboardRes.data as Dashboard);
     setResultDrafts(
       Object.fromEntries(
-        ((resultsRes.data as Result[] | null) ?? []).map((result) => [
+        ((resultsRes.data as Result[] | null) ?? []).filter((result) => playedMatchIds.has(result.match_id)).map((result) => [
           result.match_id,
           { goals_a: String(result.goals_a), goals_b: String(result.goals_b) },
         ]),
