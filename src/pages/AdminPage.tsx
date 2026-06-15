@@ -61,12 +61,6 @@ const toDatetimeLocalValue = (value?: string | null) => {
 
 const fromDatetimeLocalValue = (value: string) => `${value}:00-04:00`;
 
-const applyOfficialScheduleTeams = (match: Match) => {
-  const schedule = getMatchSchedule(match);
-  if (!schedule) return match;
-  return { ...match, team_a: schedule.teamA, team_b: schedule.teamB };
-};
-
 export function AdminPage() {
   const { user: currentUser, profile } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -99,7 +93,7 @@ export function AdminPage() {
       supabase.rpc("admin_get_prediction_approvals"),
     ]);
     const nextUsers = (usersRes.data as UserProfile[] | null) ?? [];
-    const nextMatches = getGroupStageMatches((matchesRes.data as Match[] | null) ?? []).map(applyOfficialScheduleTeams);
+    const nextMatches = getGroupStageMatches((matchesRes.data as Match[] | null) ?? []);
     const playedMatchIds = new Set(nextMatches.filter((match) => match.status === "played").map((match) => match.id));
     setUsers(nextUsers);
     setPredictionLimitDrafts(Object.fromEntries(nextUsers.map((user) => [user.id, String(user.max_predictions ?? 1)])));
@@ -445,8 +439,6 @@ export function AdminPage() {
                 <h4 className="rounded-md bg-muted px-3 py-2 text-sm font-black text-primary">{groupName}</h4>
                 {matches.filter((match) => (match.group_name ?? "Sin grupo") === groupName).map((match, index) => {
                   const schedule = getMatchSchedule(match);
-                  const teamA = schedule?.teamA ?? match.team_a;
-                  const teamB = schedule?.teamB ?? match.team_b;
                   const resultDraft = resultDrafts[match.id] ?? { goals_a: "", goals_b: "" };
                   return (
                     <form key={match.id} onSubmit={(event) => saveResult(event, match)} className="grid gap-2 rounded-lg border bg-white p-3 lg:grid-cols-[70px_1fr_1fr_90px_90px_auto_auto_auto] lg:items-center">
@@ -457,11 +449,11 @@ export function AdminPage() {
                         <span className="block truncate" title={schedule?.venue ?? match.venue ?? ""}>{schedule?.venue ?? match.venue ?? "-"}</span>
                       </div>
                       <div className="space-y-1">
-                        <TeamLabel team={teamA} />
+                        <TeamLabel team={match.team_a} />
                         <Input value={match.team_a} onChange={(e) => setMatches((rows) => rows.map((row) => (row.id === match.id ? { ...row, team_a: e.target.value } : row)))} />
                       </div>
                       <div className="space-y-1">
-                        <TeamLabel team={teamB} />
+                        <TeamLabel team={match.team_b} />
                         <Input value={match.team_b} onChange={(e) => setMatches((rows) => rows.map((row) => (row.id === match.id ? { ...row, team_b: e.target.value } : row)))} />
                       </div>
                       <Input

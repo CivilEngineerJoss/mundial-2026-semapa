@@ -314,8 +314,6 @@ export function HomePage() {
                     <div className="grid gap-3 lg:grid-cols-2">
                       {matches.filter((match) => match.phase === phase && (match.group_name ?? "Sin grupo") === groupName).map((match) => {
                         const schedule = getMatchSchedule(match);
-                        const teamA = schedule?.teamA ?? match.team_a;
-                        const teamB = schedule?.teamB ?? match.team_b;
                         return (
                           <div key={match.id} className="rounded-lg border bg-white p-3 text-sm">
                             <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold text-muted-foreground">
@@ -325,11 +323,11 @@ export function HomePage() {
                               <span>{schedule?.venue ?? match.venue ?? "Estadio por definir"}</span>
                             </div>
                             <div className="grid grid-cols-[minmax(0,1fr)_64px_20px_64px_minmax(0,1fr)] items-center gap-2">
-                              <TeamLabel team={teamA} />
+                              <TeamLabel team={match.team_a} />
                               <Input type="number" min={0} max={99} value={details[match.id]?.predicted_goals_a ?? ""} onChange={(e) => setScore(match.id, "predicted_goals_a", e.target.value)} disabled={locked} className="text-center font-bold" />
                               <span className="text-center font-bold">-</span>
                               <Input type="number" min={0} max={99} value={details[match.id]?.predicted_goals_b ?? ""} onChange={(e) => setScore(match.id, "predicted_goals_b", e.target.value)} disabled={locked} className="text-center font-bold" />
-                              <TeamLabel team={teamB} align="right" />
+                              <TeamLabel team={match.team_b} align="right" />
                             </div>
                           </div>
                         );
