@@ -94,5 +94,5 @@ matchSchedule.forEach((match) => {
 });
 
 export function getMatchSchedule(match: Match) {
-  return scheduleByPair.get(`${normalize(match.team_a)}|${normalize(match.team_b)}`) ?? scheduleByNumber.get(match.match_number);
+  return scheduleByNumber.get(match.match_number) ?? scheduleByPair.get(`${normalize(match.team_a)}|${normalize(match.team_b)}`);
 }

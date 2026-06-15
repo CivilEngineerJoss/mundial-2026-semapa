@@ -61,6 +61,12 @@ const toDatetimeLocalValue = (value?: string | null) => {
 
 const fromDatetimeLocalValue = (value: string) => `${value}:00-04:00`;
 
+const applyOfficialScheduleTeams = (match: Match) => {
+  const schedule = getMatchSchedule(match);
+  if (!schedule) return match;
+  return { ...match, team_a: schedule.teamA, team_b: schedule.teamB };
+};
+
 export function AdminPage() {
   const { user: currentUser, profile } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -95,7 +101,7 @@ export function AdminPage() {
     const nextUsers = (usersRes.data as UserProfile[] | null) ?? [];
     setUsers(nextUsers);
     setPredictionLimitDrafts(Object.fromEntries(nextUsers.map((user) => [user.id, String(user.max_predictions ?? 1)])));
-    setMatches(getGroupStageMatches((matchesRes.data as Match[] | null) ?? []));
+    setMatches(getGroupStageMatches((matchesRes.data as Match[] | null) ?? []).map(applyOfficialScheduleTeams));
     setRanking((rankingRes.data as RankingRow[] | null) ?? []);
     const settingsRows = (settingsRes.data as { key: string; value: string | null }[] | null) ?? [];
     const prizesText = settingsRows.find((row) => row.key === "prizes_text")?.value;

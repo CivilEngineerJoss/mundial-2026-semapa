@@ -17,6 +17,5 @@ set
     when 57 then 'Suecia'
     when 58 then 'Paises Bajos'
     else team_b
-  end,
-  updated_at = now()
+  end
 where match_number in (11, 12, 35, 36, 57, 58);
