@@ -1,4 +1,5 @@
 import type { Match } from "../lib/types";
+import { initialMatches } from "./initialMatches";
 
 export type MatchSchedule = {
   matchNumber: number;
@@ -93,6 +94,12 @@ matchSchedule.forEach((match) => {
   scheduleByPair.set(`${normalize(match.teamB)}|${normalize(match.teamA)}`, match);
 });
 
+const scheduleByInitialMatchId = new Map<number, MatchSchedule>();
+initialMatches.forEach((match) => {
+  const schedule = scheduleByPair.get(`${normalize(match.team_a)}|${normalize(match.team_b)}`);
+  if (schedule) scheduleByInitialMatchId.set(match.id, schedule);
+});
+
 export function getMatchSchedule(match: Match) {
-  return scheduleByNumber.get(match.match_number) ?? scheduleByPair.get(`${normalize(match.team_a)}|${normalize(match.team_b)}`);
+  return scheduleByInitialMatchId.get(Number(match.id)) ?? scheduleByPair.get(`${normalize(match.team_a)}|${normalize(match.team_b)}`) ?? scheduleByNumber.get(match.match_number);
 }
