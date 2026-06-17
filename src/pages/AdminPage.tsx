@@ -6,7 +6,6 @@ import { Input } from "../components/ui/input";
 import { Table, Td, Th } from "../components/ui/table";
 import { TeamLabel } from "../components/TeamLabel";
 import { useAuth } from "../components/AuthProvider";
-import { getMatchSchedule } from "../data/matchSchedule";
 import { supabase } from "../lib/supabase";
 import type { Match, RankingRow, Result, UserProfile } from "../lib/types";
 import { formatDateTime } from "../lib/utils";
@@ -437,16 +436,14 @@ export function AdminPage() {
             {getGroups(matches).map((groupName) => (
               <div key={groupName} className="space-y-3">
                 <h4 className="rounded-md bg-muted px-3 py-2 text-sm font-black text-primary">{groupName}</h4>
-                {matches.filter((match) => (match.group_name ?? "Sin grupo") === groupName).map((match, index) => {
-                  const schedule = getMatchSchedule(match);
+                {matches.filter((match) => (match.group_name ?? "Sin grupo") === groupName).map((match) => {
                   const resultDraft = resultDrafts[match.id] ?? { goals_a: "", goals_b: "" };
                   return (
                     <form key={match.id} onSubmit={(event) => saveResult(event, match)} className="grid gap-2 rounded-lg border bg-white p-3 lg:grid-cols-[70px_1fr_1fr_90px_90px_auto_auto_auto] lg:items-center">
                       <div className="text-xs font-bold text-muted-foreground">
-                        <b className="block text-base text-primary">#{schedule?.matchNumber ?? match.match_number}</b>
-                        <span>{schedule?.date ?? "-"}</span>
-                        <span className="block">{schedule?.time ?? "-"}</span>
-                        <span className="block truncate" title={schedule?.venue ?? match.venue ?? ""}>{schedule?.venue ?? match.venue ?? "-"}</span>
+                        <b className="block text-base text-primary">#{match.match_number}</b>
+                        <span>{formatDateTime(match.match_date)}</span>
+                        <span className="block truncate" title={match.venue ?? ""}>{match.venue ?? "-"}</span>
                       </div>
                       <div className="space-y-1">
                         <TeamLabel team={match.team_a} />

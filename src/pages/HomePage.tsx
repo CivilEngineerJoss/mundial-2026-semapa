@@ -7,7 +7,6 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { initialMatches } from "../data/initialMatches";
-import { getMatchSchedule } from "../data/matchSchedule";
 import { generatePredictionPdf } from "../lib/pdf";
 import { supabase } from "../lib/supabase";
 import type { Match, Prediction, PredictionDetail, RankingRow } from "../lib/types";
@@ -312,15 +311,12 @@ export function HomePage() {
                   <section key={groupName} className="space-y-3">
                     <h4 className="rounded-md bg-muted px-3 py-2 text-sm font-black text-primary">{groupName}</h4>
                     <div className="grid gap-3 lg:grid-cols-2">
-                      {matches.filter((match) => match.phase === phase && (match.group_name ?? "Sin grupo") === groupName).map((match) => {
-                        const schedule = getMatchSchedule(match);
-                        return (
+                      {matches.filter((match) => match.phase === phase && (match.group_name ?? "Sin grupo") === groupName).map((match) => (
                           <div key={match.id} className="rounded-lg border bg-white p-3 text-sm">
                             <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold text-muted-foreground">
-                              <span className="rounded bg-primary px-2 py-1 text-white">#{schedule?.matchNumber ?? match.match_number}</span>
-                              <span>{schedule?.date ?? "Fecha por definir"}</span>
-                              <span>{schedule?.time ?? "Hora por definir"}</span>
-                              <span>{schedule?.venue ?? match.venue ?? "Estadio por definir"}</span>
+                              <span className="rounded bg-primary px-2 py-1 text-white">#{match.match_number}</span>
+                              <span>{formatDateTime(match.match_date)}</span>
+                              <span>{match.venue ?? "Estadio por definir"}</span>
                             </div>
                             <div className="grid grid-cols-[minmax(0,1fr)_64px_20px_64px_minmax(0,1fr)] items-center gap-2">
                               <TeamLabel team={match.team_a} />
@@ -330,8 +326,7 @@ export function HomePage() {
                               <TeamLabel team={match.team_b} align="right" />
                             </div>
                           </div>
-                        );
-                      })}
+                        ))}
                     </div>
                   </section>
                 ))}

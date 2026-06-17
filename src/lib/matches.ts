@@ -1,5 +1,4 @@
 import type { Match } from "./types";
-import { getMatchSchedule } from "../data/matchSchedule";
 
 export const GROUP_STAGE_LIMIT = 72;
 
@@ -10,9 +9,7 @@ export function isGroupStageMatch(match: Match) {
 }
 
 export function sortMatchesByOfficialNumber(a: Match, b: Match) {
-  const scheduleA = getMatchSchedule(a);
-  const scheduleB = getMatchSchedule(b);
-  return (scheduleA?.matchNumber ?? a.match_number) - (scheduleB?.matchNumber ?? b.match_number);
+  return (a.sort_order ?? a.match_number) - (b.sort_order ?? b.match_number);
 }
 
 export function getGroupStageMatches(matches: Match[]) {
