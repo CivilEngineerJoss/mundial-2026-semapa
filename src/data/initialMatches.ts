@@ -1,5 +1,4 @@
 import type { Match } from "../lib/types";
-import { matchSchedule } from "./matchSchedule";
 
 const groups: Record<string, string[]> = {
   A: ["Mexico", "Sudafrica", "Corea del Sur", "Republica Checa"],
@@ -7,7 +6,7 @@ const groups: Record<string, string[]> = {
   C: ["Brasil", "Marruecos", "Haiti", "Escocia"],
   D: ["Estados Unidos", "Paraguay", "Australia", "Turquia"],
   E: ["Alemania", "Curazao", "Costa de Marfil", "Ecuador"],
-  F: ["Paises Bajos", "Japon", "Suecia", "Tunez"],
+  F: ["Paises Bajos", "Japon", "Tunez", "Suecia"],
   G: ["Belgica", "Egipto", "Iran", "Nueva Zelanda"],
   H: ["Espana", "Cabo Verde", "Arabia Saudita", "Uruguay"],
   I: ["Francia", "Senegal", "Noruega", "Irak"],
@@ -25,19 +24,16 @@ const pairings = [
   [1, 2],
 ];
 
-const scheduleByNumber = new Map(matchSchedule.map((match) => [match.matchNumber, match]));
-
 const groupMatches = Object.entries(groups).flatMap(([group, teams], groupIndex) =>
   pairings.map(([a, b], index) => {
     const number = groupIndex * 6 + index + 1;
-    const schedule = scheduleByNumber.get(number);
     return {
       id: number,
       match_number: number,
       phase: "Fase de grupos",
       group_name: `Grupo ${group}`,
-      team_a: schedule?.teamA ?? teams[a],
-      team_b: schedule?.teamB ?? teams[b],
+      team_a: teams[a],
+      team_b: teams[b],
       match_date: null,
       venue: null,
       status: "scheduled" as const,
