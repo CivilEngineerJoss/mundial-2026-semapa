@@ -8,12 +8,12 @@ export function isGroupStageMatch(match: Match) {
   return match.phase === "Fase de grupos" && match.match_number <= GROUP_STAGE_LIMIT;
 }
 
-export function sortMatchesByOfficialNumber(a: Match, b: Match) {
-  return (a.sort_order ?? a.match_number) - (b.sort_order ?? b.match_number);
+export function sortMatchesByDatabaseOrder(a: Match, b: Match) {
+  return (a.sort_order ?? a.match_number ?? a.id) - (b.sort_order ?? b.match_number ?? b.id);
 }
 
 export function getGroupStageMatches(matches: Match[]) {
-  return matches.filter(isGroupStageMatch).sort(sortMatchesByOfficialNumber);
+  return matches.filter(isGroupStageMatch).sort(sortMatchesByDatabaseOrder);
 }
 
 export function getGroups(matches: Match[]) {

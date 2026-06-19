@@ -315,8 +315,8 @@ export function HomePage() {
                           <div key={match.id} className="rounded-lg border bg-white p-3 text-sm">
                             <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold text-muted-foreground">
                               <span className="rounded bg-primary px-2 py-1 text-white">#{match.match_number}</span>
-                              <span>{formatDateTime(match.match_date)}</span>
-                              <span>{match.venue ?? "Estadio por definir"}</span>
+                              {match.match_date && <span>{formatDateTime(match.match_date)}</span>}
+                              <span>{match.venue ?? "Sede por definir"}</span>
                             </div>
                             <div className="grid grid-cols-[minmax(0,1fr)_64px_20px_64px_minmax(0,1fr)] items-center gap-2">
                               <TeamLabel team={match.team_a} />

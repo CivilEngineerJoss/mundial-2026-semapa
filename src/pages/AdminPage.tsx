@@ -442,7 +442,7 @@ export function AdminPage() {
                     <form key={match.id} onSubmit={(event) => saveResult(event, match)} className="grid gap-2 rounded-lg border bg-white p-3 lg:grid-cols-[70px_1fr_1fr_90px_90px_auto_auto_auto] lg:items-center">
                       <div className="text-xs font-bold text-muted-foreground">
                         <b className="block text-base text-primary">#{match.match_number}</b>
-                        <span>{formatDateTime(match.match_date)}</span>
+                        {match.match_date && <span>{formatDateTime(match.match_date)}</span>}
                         <span className="block truncate" title={match.venue ?? ""}>{match.venue ?? "-"}</span>
                       </div>
                       <div className="space-y-1">
